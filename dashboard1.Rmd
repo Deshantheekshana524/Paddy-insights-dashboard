@@ -1,0 +1,372 @@
+---
+title: "Paddy Insights: Sri Lanka’s Rice Production at a Glance"
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: columns
+    vertical_layout: fill
+---
+
+```{r setup, include=FALSE}
+
+library(flexdashboard)
+library(ggplot2)
+library(shiny)
+library(plotly)
+library(tidyverse)
+library(tsibble)
+library(readxl)
+library(sf)
+library(ceylon)
+library(patchwork)
+```
+
+
+```{r}
+
+options(scipen = 999)
+
+#--------------------------------------------------------------------------------
+#### loading and wrangling dataset : data national.xlsx
+
+yala_datanational <- read_xlsx("data national.xlsx", sheet = "Yala")
+yala_datanational <- yala_datanational %>%
+  rename(year = years, sown = `sown( in hectares)`, 
+         harvested = `harvested(in hectares)`, 
+         average_yield = `averageyield(kg per hectares)`,
+         production = `production(in metric tons)`)
+yala_datanational <- as_tsibble(yala_datanational, index = "year")
+
+
+maha_datanational <- read_excel("data national.xlsx", sheet = "Maha")
+
+maha_datanational <- maha_datanational %>%
+  rename(year = years, sown = `sown(in hectares)`, 
+         harvested = `harvested(in hectares)`, 
+         average_yield = `averageyield(kg per hectares)`,
+         production = `production(in Metric tons)`)
+maha_datanational <- as_tsibble(maha_datanational, index = "year")
+
+#--------------------------------------------------------------------------------
+
+#### loading and wrangling dataset : data district.xlsx
+
+yaladata_district <- read_excel("data district.xlsx", sheet = "2024Yala")
+yaladata_district <- yaladata_district %>%
+  rename(sown = `gross sown (Ha)`, harvested = `gross harvested(Ha)`,
+         production = `total production (MT)`)
+
+yaladata_district$sown <- as.numeric(yaladata_district$sown)
+yaladata_district$harvested <- as.numeric(yaladata_district$harvested)
+yaladata_district$production <- as.numeric(yaladata_district$production)
+
+
+mahadata_district <- read_excel("data district.xlsx", sheet = "2024Maha") 
+mahadata_district <- mahadata_district %>%
+  rename(sown = `gross sown (Ha)`, harvested = `gross harvested(Ha)`,
+         production = `total production (MT)`)
+
+
+yaladata_district <- left_join(district, yaladata_district, by = "DISTRICT")
+mahadata_district <- left_join(district, mahadata_district, by = "DISTRICT")
+
+#--------------------------------------------------------------------------------
+
+#### loading and wrangling dataset : other data.xlsx
+
+sowing_data <- read_excel("other data.xlsx", sheet = "2024sowing")
+
+df_sowing <- sowing_data %>%
+  mutate(yala = `yala area`, maha = `maha area`,) %>%
+  pivot_longer(cols = c(yala, maha), names_to = "season", values_to = "area") %>%
+  group_by(season) %>%
+  mutate(percentage = round(area/sum(area) * 100, 2))
+
+
+harvesting_data <- read_excel("other data.xlsx", sheet = "2024harvesting")
+
+df_harvesting <- harvesting_data %>%
+  mutate(yala = `yala area`, maha = `maha area`,) %>%
+  pivot_longer(cols = c(yala, maha), names_to = "season", values_to = "area") %>%
+  group_by(season) %>%
+  mutate(percentage = round(area/sum(area) * 100, 2))
+
+
+threshing_data <- read_excel("other data.xlsx", sheet = "2024threshing")
+
+df_threshing <- threshing_data %>%
+  mutate(yala = `yala area`, maha = `maha area`,) %>%
+  pivot_longer(cols = c(yala, maha), names_to = "season", values_to = "area") %>%
+  group_by(season) %>%
+  mutate(percentage = round(area/sum(area) * 100, 2))
+
+
+fertilizer_data <- read_excel("other data.xlsx", sheet = "2024fertilizer")
+
+df_fertilizer <- fertilizer_data %>%
+  mutate(yala = `yala area`, maha = `maha area`,) %>%
+  pivot_longer(cols = c(yala, maha), names_to = "season", values_to = "area") %>%
+  group_by(season) %>%
+  mutate(percentage = round(area/sum(area) * 100, 2))
+
+```
+
+# Through Years
+
+## column {data-width=550}
+
+###
+
+```{r}
+plot1 <- ggplot(yala_datanational, aes(x = year)) + 
+  geom_line(aes(y = sown, color = "area sown")) + 
+  geom_point(aes(y = sown, color = "area sown"), size = 1) + 
+  geom_line(aes(y = harvested, color = "area harvested")) +
+  geom_point(aes(y = harvested, color = "area harvested"), size = 1) + 
+  scale_color_manual(values = c("area sown" = "cyan3", "area harvested" = "coral")) +
+  labs(title = "Yala Season: Area Sown and Harvested over Years",
+       y = "Area (Hectares)",
+       color = "Legend") +
+  theme_minimal()
+
+ggplotly(plot1) %>% config(displayModeBar = F)
+
+```
+
+###
+
+```{r}
+plot2 <- ggplot(yala_datanational, aes(x = year, y = average_yield)) + 
+  geom_line(color = "darkorchid") + geom_point(color = "darkorchid") + 
+  labs(title = "Yala season: Average Yield over the years", y = "Yield kg per hectare") + 
+  theme_minimal()
+        
+ggplotly(plot2) %>% config(displayModeBar = F)
+```
+
+## column {data-widtht=500}
+
+###
+
+```{r}
+plot3 <- ggplot(maha_datanational, aes(x = year)) + 
+  geom_line(aes(y = sown, color = "area sown")) + 
+  geom_point(aes(y = sown, color = "area sown"), size = 1) + 
+  geom_line(aes(y = harvested, color = "area harvested")) +
+  geom_point(aes(y = harvested, color = "area harvested"), size = 1) + 
+  scale_color_manual(values = c("area sown" = "cyan3", "area harvested" = "coral")) +
+  labs(title = "Maha Season: Area Sown and Harvested over Years",
+       y = "Area (Hectares)",
+       color = "Legend") +
+  theme_minimal()
+
+ggplotly(plot3) %>% config(displayModeBar = F)
+```
+
+###
+
+```{r}
+plot4 <- ggplot(maha_datanational, aes(x = year, y = average_yield)) + 
+  geom_line(color = "darkorchid") + geom_point(color = "darkorchid") + 
+  labs(title = "Maha season: Average Yield over the years", y = "Yield kg per hectare") + 
+  theme_minimal()
+        
+ggplotly(plot4) %>% config(displayModeBar = F)
+```
+
+## column 3 {data-width="200"}
+
+### kpi 1
+
+```{r}
+valueBox(value = paste("481,316" , "ha"), 
+         caption = "2024 Yala sown Area", icon = "fa-tractor", 
+          color = "brown")
+```
+
+### kpi 2 
+
+```{r}
+valueBox(value = paste("479,427", "ha"), 
+         caption = "2024 Yala Harvested Area", icon = "fa-leaf", 
+          color = "darkgreen")
+```
+
+### kpi 3
+
+```{r}
+valueBox(value = paste("1,976,496", "MT"), 
+         caption = "2024 Yala season Production", icon = "fa-balance-scale", 
+          color = "darkblue")
+```
+
+### kpi 4
+
+```{r}
+valueBox(value = paste("806,673", "ha"), 
+         caption = "2024 Maha sown Area", icon = "fa-tractor", 
+          color = "brown")
+```
+
+### kpi 5 
+
+```{r}
+valueBox(value = paste("785,042", "ha"), 
+         caption = "2024 Maha Harvested Area", icon = "fa-leaf", 
+          color = "darkgreen")
+```
+
+### kpi 6 
+
+```{r}
+valueBox(value = paste("2,721,958", "MT"), 
+         caption = "2024 Maha Production", icon = "fa-balance-scale", 
+          color = "darkblue")
+```
+
+# Across Districts
+
+## column {data-width="350"}
+
+### Districtwise Paddy Sown Area - Yala 2024
+
+```{r}
+plot5 <- ggplot(yaladata_district) + geom_sf(aes(fill = sown)) +
+  scale_fill_gradient(low = "lightyellow", high = "darkred") + theme_void() +
+  theme(aspect.ratio = 1.5, legend.text = element_text(size = 12), 
+        legend.title = element_text(size = 14)) + labs(fill = "Hectares")
+plot5
+```
+
+### Districtwise Paddy sown Area - Maha 2024
+
+```{r}
+plot6 <- ggplot(mahadata_district) + geom_sf(aes(fill = sown)) +
+  scale_fill_gradient(low = "lightyellow", high = "darkred") + theme_void() +
+  theme(aspect.ratio = 1.5, legend.position = "none")
+plot6
+```
+
+## column {data-width="350"}
+
+### Districtwise Paddy Harvested Area - Yala 2024 
+
+```{r}
+plot7 <- ggplot(yaladata_district) + geom_sf(aes(fill = harvested)) +
+  scale_fill_gradient(low = "lightyellow", high = "darkgreen") + theme_void() +
+  theme(aspect.ratio = 1.5, legend.text = element_text(size = 12), 
+        legend.title = element_text(size = 14)) + labs(fill = "Hectares")
+plot7
+```
+
+### Districtwise Paddy Harvested Area - Maha 2024 
+
+```{r}
+plot8 <- ggplot(mahadata_district) + geom_sf(aes(fill = harvested)) +
+  scale_fill_gradient(low = "lightyellow", high = "darkgreen") + theme_void() +
+  theme(aspect.ratio = 1.5, legend.position = "none")
+plot8
+```
+
+## column {data-width="350"}
+
+### Districtwise Paddy Production – Yala 2024
+
+```{r}
+plot9 <- ggplot(yaladata_district) + geom_sf(aes(fill = production)) +
+  scale_fill_gradient(low = "lightblue", high = "darkblue") + theme_void() +
+  theme(aspect.ratio = 1.5, legend.text = element_text(size = 12), 
+        legend.title = element_text(size = 14)) + labs(fill = "Metric Tons")
+plot9
+```
+
+### Districtwise Paddy Production – Maha 2024
+
+```{r}
+plot10 <- ggplot(mahadata_district) + geom_sf(aes(fill = production)) +
+  scale_fill_gradient(low = "lightblue", high = "darkblue") + theme_void() +
+  theme(aspect.ratio = 1.5, legend.position = "none")
+plot10
+```
+
+# Farming Practices
+
+## column {data-width="500"}
+
+### 
+
+```{r}
+p1 <- ggplot(df_sowing, aes(x = `method of sowing`, y = area, fill = season)) +
+  geom_col(position = position_dodge()) + 
+  geom_text(aes(y = area + max(area) * 0.03, label = paste(percentage, "%"), text = NULL), 
+            position = position_dodge(width = 0.9), size = 3) + 
+  scale_fill_manual(values = c("yala" = "sandybrown", "maha" = "plum")) + 
+  labs(title = "Sown area by method of sowing - 2024",
+       x = "Method of sowing", y = "Area (Hectares)", fill = "Season") +
+  theme_minimal()
+
+plot11 <- ggplotly(p1, tooltip = c("x", "y", "fill")) %>% config(displayModeBar = F)
+plot11$x$data[[3]]$hoverinfo <- "none"
+plot11$x$data[[4]]$hoverinfo <- "none"
+
+plot11
+```
+
+###
+
+```{r}
+p2 <- ggplot(df_threshing, aes(x = `method of threshing`, y = area, fill = season)) +
+  geom_col(position = position_dodge()) + 
+  geom_text(aes(y = area + max(area) * 0.03, label = paste(percentage, "%"), text = NULL), 
+            position = position_dodge(width = 0.9), size = 3) + 
+  scale_fill_manual(values = c("yala" = "sandybrown", "maha" = "plum")) + 
+  labs(title = "Sown area by method of threshing - 2024",
+       x = "Method of threshing", y = "Area (Hectares)", fill = "Season") +
+  theme_minimal()
+
+plot12 <- ggplotly(p2, tooltip = c("x", "y", "fill")) %>% config(displayModeBar = F)
+plot12$x$data[[3]]$hoverinfo <- "none"
+plot12$x$data[[4]]$hoverinfo <- "none"
+
+plot12
+```
+
+## column {data-width="500"}
+
+### 
+
+```{r}
+p3 <- ggplot(df_harvesting, aes(x = `method of harvesting`, y = area, fill = season)) +
+  geom_col(position = position_dodge()) + 
+  geom_text(aes(y = area + max(area) * 0.03, label = paste(percentage, "%"), text = NULL), 
+            position = position_dodge(width = 0.9), size = 3) + 
+  scale_fill_manual(values = c("yala" = "sandybrown", "maha" = "plum")) + 
+  labs(title = "Sown area by method of harvesting - 2024",
+       x = "Method of harvesting", y = "Area (Hectares)", fill = "Season") +
+  theme_minimal()
+
+plot13 <- ggplotly(p3, tooltip = c("x", "y", "fill")) %>% config(displayModeBar = F)
+plot13$x$data[[3]]$hoverinfo <- "none"
+plot13$x$data[[4]]$hoverinfo <- "none"
+
+plot13
+```
+
+###
+
+```{r}
+p4 <- ggplot(df_fertilizer, aes(x = `application of fertilizer`, y = area, fill = season)) +
+  geom_col(position = position_dodge()) + 
+  geom_text(aes(y = area + max(area) * 0.03, label = paste(percentage, "%"), text = NULL), 
+            position = position_dodge(width = 0.9), size = 3) + 
+  scale_fill_manual(values = c("yala" = "sandybrown", "maha" = "plum")) + 
+  labs(title = "Sown area by fertilizer type used - 2024",
+       x = "Method of harvesting", y = "Area (Hectares)", fill = "Season") +
+  theme_minimal()
+
+plot14 <- ggplotly(p4, tooltip = c("x", "y", "fill")) %>% config(displayModeBar = F)
+plot14$x$data[[3]]$hoverinfo <- "none"
+plot14$x$data[[4]]$hoverinfo <- "none"
+
+plot14
+```
+
