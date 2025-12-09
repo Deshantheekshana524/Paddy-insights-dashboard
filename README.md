@@ -1,3 +1,3 @@
-# My Dashboard
+# Dashboard
 
-Check out my interactive dashboard here: [View Dashboard](https://deshantheekshana524.github.io/Paddy-insights-dashboard/)
+Check out the interactive dashboard here: [View Dashboard](https://deshantheekshana524.github.io/Paddy-insights-dashboard/)
